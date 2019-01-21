@@ -4,16 +4,17 @@
 #include <math.h>
 #include <time.h>
 
-#include "geometry_msgs/Vector3Stamped";
-#include "geometry_msgs/AccelStamped";
+#include "nearlab_utils/orbitPropagator.h"
+#include "geometry_msgs/Vector3Stamped"
+#include "geometry_msgs/AccelStamped"
 #include "geometry_msgs/"
 #include "quatMath.h"
 
-Eigen::Vector3d r;
+Eigen::Vector3d r, v, w;
 Eigen::Vector4d q;
 Eigen::Vector3d u_linear, u_angular;
 ros::Time tState, tControl;
-double sc_mass, sc_thrust, mean_rate;
+double sc_mass, sc_thrust, mean_rate, grav_param, rOrb[3];
 Eigen::Matrix3d J;
 bool cwOnly;
 
@@ -25,6 +26,8 @@ void stateCallback(const geometry_msgs::PoseStamped msg){
   q(1) = msg.Pose.orientation.y;
   q(2) = msg.Pose.orientation.z;
   q(3) = msg.Pose.orientation.w;
+  v = Eigen::VectorXd::Zero(3);
+  w = Eigen::VectorXd::Zero(3);
   tState = msg.header.stamp;
 }
 
@@ -39,7 +42,7 @@ void controlCallback(const nearlab_msgs::ControlStamped msg){
 }
 
 void setupSim(const NodeHandle& nh){
-  double grav_param, rOrb[3], sc_inertia[3];
+  double sc_inertia[3];
   nh.getParam("sc_mass",sc_mass);
   nh.getParam("sc_thrust",sc_thrust);
   nh.getParam("grav_param",grav_param);
@@ -63,11 +66,12 @@ int main(int argc, char** argv){
   setupSim(nh);
 
   // Subscribers
-  subState = nh.subscribe("/orbot/space/state/truth",100,stateCallback);
+  subState = nh.subscribe("/orbot/space/state/vicon",100,stateCallback);
   subControl = nh.subscribe("/orbot/space/control",100,controlCallback);
 
   // Publishers
-  pubControl = nh.advertise<geometry_msgs::AccelStamped>("/orbot/space/dynamics/rel_accel"),100);
+  pubDynamics = nh.advertise<geometry_msgs::AccelStamped>("/orbot/space/dynamics/rel_accel"),100);
+  pubState = nh.advertise<nearlab_msgs::StateStamped>("/orbot/space/state/truth"),100);
   
   // setup trajectory clients
   
@@ -84,8 +88,10 @@ int main(int argc, char** argv){
   tControl = ros::Time(0);
   ros::Time tPrev;
   int sequence = 0;
+  OrbitalParams params(sc_mass,sc_thrust,time_const,dist_const,rOrb,grav_param);
 
   while(ros::ok()){
+    
     if(!initialized){
       if(tState.toSec() > 0){ // Don't need control input to initialize
         // Initialize
@@ -93,7 +99,13 @@ int main(int argc, char** argv){
         if(tControl.toSec() == 0){
           u = Eigen::VectorXd::Zero(3);
         }
+        tPrev = tState;
+        // Deregister vicon updater
+        subState.shutdown();
+
         ROS_INFO("Dynamics Simulator Initialized");
+        continue;
+
       }
       ros::spinOnce();
       continue;
@@ -110,10 +122,31 @@ int main(int argc, char** argv){
       // TODO: two-body, J2, higher order, three/four body, etc
     }
 
-    // Calculate gyro
+    // Calculate gyro rate
     //omegaBd =  J\(T_rotor + T_lift + T_motor + T_inertia); %rate of attitude rate
     a = J.inverse()*u_angular;
 
+    // Calculate time since last update to state
+    double dt = (ros::Time::now() - tPrev).toSec();
+    tPrev = ros::Time::now();
+
+    // Propagate orbital dynamics
+    Eigen::MatrixXd control = Eigen::MatrixXd::Zero(6,1);
+    Eigen::MatrixXd stateHist = Eigen::MatrixXd::Zero(6,2);
+    cwProp(stateHist,r,v,control,dt,2,params);
+    
+    // Propagate attitude dynamics
+
+
+
+
+
+
+
+
+
+
+    // Publish rel accel and state
     geometry_msgs::AccelStamped accelMsg;
     accelMsg.header.seq = sequence++;
     accelMsg.header.stamp = ros::Time::now();
