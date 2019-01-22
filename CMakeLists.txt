@@ -39,7 +39,7 @@ include_directories(
 add_executable(rel_dynamics_node
                src/relDynamicsNode.cpp)
 
-set(EXEC_LIST traj_gen_node)
+set(EXEC_LIST rel_dynamics_node)
 foreach(EXEC_FILE ${EXEC_LIST})
   target_link_libraries(${EXEC_FILE} ${catkin_LIBRARIES} ${NL_UTILS})
   #add_dependencies(${EXEC_FILE} ${catkin_iEXPORTED_TARGETS})

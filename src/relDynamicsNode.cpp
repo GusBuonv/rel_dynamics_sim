@@ -4,10 +4,10 @@
 #include <math.h>
 #include <time.h>
 
-#include "geometry_msgs/PoseStamped"
-#include "geometry_msgs/AccelStamped"
-#include "nearlab_msgs/StateStamped"
-#include "nearlab_msgs/ControlStamped"
+#include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/AccelStamped.h"
+#include "nearlab_msgs/StateStamped.h"
+#include "nearlab_msgs/ControlStamped.h"
 
 // These 3 come from nearlab_utils
 #include "orbitPropagator.h"
@@ -24,13 +24,13 @@ Eigen::Matrix3d J;
 bool cwOnly;
 
 void stateCallback(const geometry_msgs::PoseStamped msg){
-  r(0) = msg.Pose.position.x;
-  r(1) = msg.Pose.position.y;
-  r(2) = msg.Pose.position.z;
-  q(0) = msg.Pose.orientation.x;
-  q(1) = msg.Pose.orientation.y;
-  q(2) = msg.Pose.orientation.z;
-  q(3) = msg.Pose.orientation.w;
+  r(0) = msg.pose.position.x;
+  r(1) = msg.pose.position.y;
+  r(2) = msg.pose.position.z;
+  q(0) = msg.pose.orientation.x;
+  q(1) = msg.pose.orientation.y;
+  q(2) = msg.pose.orientation.z;
+  q(3) = msg.pose.orientation.w;
   v = Eigen::VectorXd::Zero(3);
   w = Eigen::VectorXd::Zero(3);
   tState = msg.header.stamp;
@@ -46,7 +46,7 @@ void controlCallback(const nearlab_msgs::ControlStamped msg){
   tControl = msg.header.stamp;
 }
 
-void setupSim(const NodeHandle& nh){
+void setupSim(const ros::NodeHandle& nh){
   double sc_inertia[3];
   nh.getParam("sc_mass",sc_mass);
   nh.getParam("sc_thrust",sc_thrust);
@@ -59,7 +59,7 @@ void setupSim(const NodeHandle& nh){
   nh.getParam("sc_inertia_zz",srv.request.sc_inertia[2]);
   nh.getParam("clohessy_wiltshire",cwOnly);
   mean_rate = sqrt(grav_param/pow(rOrb.norm(),3));
-  J = Eigen::MatrixXd::Zero(3);
+  J = Eigen::MatrixXd::Zero(3,3);
   J(0,0) = sc_inertia[0];
   J(1,1) = sc_inertia[1];
   J(2,2) = sc_inertia[2];
