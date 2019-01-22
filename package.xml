@@ -1,0 +1,29 @@
+<package>
+  <name>rel_dynamics_sim</name>
+  <version>0.0.1</version>
+  <description>
+    Propagates the dynamics for CW equations with forces added in. Also does the attitude dynamics propagation.
+  </description>
+  <license>MIT</license>
+  <maintainer email="jtb2013@gmail.com">James Bell</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+
+  <build_depend>std_msgs</build_depend>
+  <build_depend>cmake_modules</build_depend>
+  <build_depend>nearlab_msgs</build_depend>
+  <build_depend>nearlab_utils</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+
+  <run_depend>message_runtime</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>nearlab_msgs</run_depend>
+  <run_depend>nearlab_utils</run_depend>
+  <run_depend>cmake_modules</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+</package>
+
+

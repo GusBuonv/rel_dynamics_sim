@@ -4,12 +4,17 @@
 #include <math.h>
 #include <time.h>
 
-#include "nearlab_utils/orbitPropagator.h"
-#include "geometry_msgs/Vector3Stamped"
+#include "geometry_msgs/PoseStamped"
 #include "geometry_msgs/AccelStamped"
-#include "geometry_msgs/"
+#include "nearlab_msgs/StateStamped"
+#include "nearlab_msgs/ControlStamped"
+
+// These 3 come from nearlab_utils
+#include "orbitPropagator.h"
+#include "attitudePropagator.h"
 #include "quatMath.h"
 
+// Declarations
 Eigen::Vector3d r, v, w;
 Eigen::Vector4d q;
 Eigen::Vector3d u_linear, u_angular;
@@ -88,7 +93,8 @@ int main(int argc, char** argv){
   tControl = ros::Time(0);
   ros::Time tPrev;
   int sequence = 0;
-  OrbitalParams params(sc_mass,sc_thrust,time_const,dist_const,rOrb,grav_param);
+  OrbitalParams orbParams(sc_mass,sc_thrust,time_const,dist_const,rOrb,grav_param);
+  AttitudeParams attParams(J);
 
   while(ros::ok()){
     
@@ -102,6 +108,10 @@ int main(int argc, char** argv){
         tPrev = tState;
         // Deregister vicon updater
         subState.shutdown();
+        if(tControl.toSec() == 0){
+          u_linear = Eigen::VectorXd::Zero(3);
+          u_angular = Eigen::VectorXd::Zero(3);
+        }
 
         ROS_INFO("Dynamics Simulator Initialized");
         continue;
@@ -111,6 +121,8 @@ int main(int argc, char** argv){
       continue;
     }
 
+
+    // ************ Acceleration Calculation ***************
     Eigen::Vector3d a,wd;//Acceleration, omega-dot
     // Calculate accel
     if(cwOnly){
@@ -123,36 +135,64 @@ int main(int argc, char** argv){
     }
 
     // Calculate gyro rate
-    //omegaBd =  J\(T_rotor + T_lift + T_motor + T_inertia); %rate of attitude rate
-    a = J.inverse()*u_angular;
+    wd = J.inverse()*u_angular;
 
+    // Publish relative acceleration
+    geometry_msgs::AccelStamped accelMsg;
+    accelMsg.header.seq = sequence;
+    accelMsg.header.stamp = tPrev;// Is this right?
+    accelMsg.linear.x = a(0);
+    accelMsg.linear.y = a(1);
+    accelMsg.linear.z = a(2);
+    accelMsg.angular.x = wd(0);
+    accelMsg.angular.y = wd(1);
+    accelMsg.angular.z = wd(2);
+    pubControl.publish(accelMsg);
+    // *******************************************************
+
+
+    // ************ Propagation of State ******************
     // Calculate time since last update to state
     double dt = (ros::Time::now() - tPrev).toSec();
     tPrev = ros::Time::now();
 
     // Propagate orbital dynamics
-    Eigen::MatrixXd control = Eigen::MatrixXd::Zero(6,1);
-    Eigen::MatrixXd stateHist = Eigen::MatrixXd::Zero(6,2);
-    cwProp(stateHist,r,v,control,dt,2,params);
+    Eigen::MatrixXd control_linear = Eigen::MatrixXd::Zero(6,1);
+    control_linear.col(0).tail(3) = u_linear;
+    Eigen::MatrixXd stateHistLin = Eigen::MatrixXd::Zero(6,2);
+    cwProp(stateHistLin,r,v,control_linear,dt,2,orbParams);
+    r = stateHistLin.head(3);
+    v = stateHistLin.tail(3);
     
     // Propagate attitude dynamics
+    Eigen::MatrixXd control_angular = Eigen::MatrixXd::Zero(7,1);
+    control_angular.col(0).tail(3) = u_angular;
+    Eigen::MatrixXd stateHistAtt = Eigen::MatrixXd::Zero(7,2);
+    attProp(stateHistAtt,q,w,control_angular,dt,2,attParams);
+    q = stateHistAtt.head(4);
+    w = stateHistAtt.tail(3);
 
+    // Publish State
+    nearlab_msgs::StateStamped stateMsg;
+    stateMsg.header.seq = sequence++;
+    stateMsg.header.stamp = tPrev;
 
+    stateMsg.r.x = r(0);
+    stateMsg.r.y = r(1);
+    stateMsg.r.z = r(2);
+    stateMsg.v.x = v(0);
+    stateMsg.v.y = v(1);
+    stateMsg.v.z = v(2);
+    stateMsg.w.x = w(0);
+    stateMsg.w.y = w(1);
+    stateMsg.w.z = w(2);
+    stateMsg.q.x = q(0);
+    stateMsg.q.y = q(1);
+    stateMsg.q.z = q(2);
+    stateMsg.q.z = q(3);
 
+    //******************************************************
 
-
-
-
-
-
-
-    // Publish rel accel and state
-    geometry_msgs::AccelStamped accelMsg;
-    accelMsg.header.seq = sequence++;
-    accelMsg.header.stamp = ros::Time::now();
-    accelMsg.header.
-
-    pubControl.publish(controlMsg);
 
     ros::spinOnce();
     loop_rate.sleep();
