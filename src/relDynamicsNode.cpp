@@ -8,8 +8,6 @@
 #include "geometry_msgs/AccelStamped.h"
 #include "nearlab_msgs/StateStamped.h"
 #include "nearlab_msgs/ControlStamped.h"
-#include "nearlab_msgs/energy_optimal_traj.h"
-#include "nearlab_msgs/attitude_traj.h"
 
 // These 3 come from nearlab_utils
 #include "orbitPropagator.h"
@@ -21,7 +19,8 @@ Eigen::Vector3d r, v, w;
 Eigen::Vector4d q;
 Eigen::Vector3d u_linear, u_angular;
 ros::Time tState, tControl;
-double sc_mass, sc_thrust, mean_rate, grav_param, rOrb[3], dist_const, time_const;
+double sc_mass, sc_thrust, mean_rate, grav_param, dist_const, time_const;
+Eigen::Vector3d rOrb;
 Eigen::Matrix3d J;
 bool cwOnly;
 
@@ -55,15 +54,14 @@ void setupSim(const ros::NodeHandle& nh){
   nh.getParam("dist_const",dist_const);
   nh.getParam("time_const",time_const);
   nh.getParam("grav_param",grav_param);
-  nh.getParam("orbital_radius_x",rOrb[0]);
-  nh.getParam("orbital_radius_x",rOrb[1]);
-  nh.getParam("orbital_radius_x",rOrb[2]);
+  nh.getParam("orbital_radius_x",rOrb(0);
+  nh.getParam("orbital_radius_x",rOrb(1);
+  nh.getParam("orbital_radius_x",rOrb(2));
   nh.getParam("sc_inertia_xx",sc_inertia[0]);
   nh.getParam("sc_inertia_yy",sc_inertia[1]);
   nh.getParam("sc_inertia_zz",sc_inertia[2]);
   nh.getParam("clohessy_wiltshire",cwOnly);
-  rOrbNorm = sqrt(rOrb[0]*rOrb[0]+rOrb[1]*rOrb[1]+rOrb[2]*rOrb[2]);
-  mean_rate = sqrt(grav_param/pow(rOrbNorm,3));
+  mean_rate = sqrt(grav_param/pow(rOrb.norm(),3));
   J = Eigen::MatrixXd::Zero(3,3);
   J(0,0) = sc_inertia[0];
   J(1,1) = sc_inertia[1];
@@ -80,15 +78,8 @@ int main(int argc, char** argv){
   ros::Subscriber subControl = nh.subscribe("/orbot/space/control",100,controlCallback);
 
   // Publishers
-  ros::Publisher pubDynamics = nh.advertise<geometry_msgs::AccelStamped>("/orbot/space/dynamics/rel_accel",100);
+  ros::Publisher pubAccel = nh.advertise<geometry_msgs::AccelStamped>("/orbot/space/dynamics/rel_accel",100);
   ros::Publisher pubState = nh.advertise<nearlab_msgs::StateStamped>("/orbot/space/state/truth",100);
-  
-  // setup trajectory clients
-  
-  
-  nearlab_msgs::energy_optimal_traj traj_srv = setupTrajRequest(nh);
-  nearlab_msgs::attitude_traj att_srv = setupAttRequest(nh);
-  Eigen::MatrixXd rStar, vStar, qStar, tStar;
 
   // Loop
   ROS_INFO("Controller Listening for Initial Estimate");
@@ -98,6 +89,7 @@ int main(int argc, char** argv){
   tControl = ros::Time(0);
   ros::Time tPrev;
   int sequence = 0;
+ 
   OrbitalParams orbParams(sc_mass,sc_thrust,time_const,dist_const,rOrb,grav_param);
   AttitudeParams attParams(J);
 
@@ -149,7 +141,7 @@ int main(int argc, char** argv){
     accelMsg.accel.angular.x = wd(0);
     accelMsg.accel.angular.y = wd(1);
     accelMsg.accel.angular.z = wd(2);
-    pubControl.publish(accelMsg);
+    pubAccel.publish(accelMsg);
     // *******************************************************
 
 
@@ -163,16 +155,16 @@ int main(int argc, char** argv){
     control_linear.col(0).tail(3) = u_linear;
     Eigen::MatrixXd stateHistLin = Eigen::MatrixXd::Zero(6,2);
     cwProp(stateHistLin,r,v,control_linear,dt,2,orbParams);
-    r = stateHistLin.head(3);
-    v = stateHistLin.tail(3);
+    r = stateHistLin.col(1).head(3);
+    v = stateHistLin.col(1).tail(3);
     
     // Propagate attitude dynamics
     Eigen::MatrixXd control_angular = Eigen::MatrixXd::Zero(7,1);
     control_angular.col(0).tail(3) = u_angular;
     Eigen::MatrixXd stateHistAtt = Eigen::MatrixXd::Zero(7,2);
     attProp(stateHistAtt,q,w,control_angular,dt,2,attParams);
-    q = stateHistAtt.head(4);
-    w = stateHistAtt.tail(3);
+    q = stateHistAtt.col(1).head(4);
+    w = stateHistAtt.col(1).tail(3);
 
     // Publish State
     nearlab_msgs::StateStamped stateMsg;
