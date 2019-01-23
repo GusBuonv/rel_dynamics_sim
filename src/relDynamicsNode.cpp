@@ -54,8 +54,8 @@ void setupSim(const ros::NodeHandle& nh){
   nh.getParam("dist_const",dist_const);
   nh.getParam("time_const",time_const);
   nh.getParam("grav_param",grav_param);
-  nh.getParam("orbital_radius_x",rOrb(0);
-  nh.getParam("orbital_radius_x",rOrb(1);
+  nh.getParam("orbital_radius_x",rOrb(0));
+  nh.getParam("orbital_radius_x",rOrb(1));
   nh.getParam("orbital_radius_x",rOrb(2));
   nh.getParam("sc_inertia_xx",sc_inertia[0]);
   nh.getParam("sc_inertia_yy",sc_inertia[1]);
