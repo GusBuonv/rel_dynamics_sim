@@ -8,6 +8,8 @@
 #include "geometry_msgs/AccelStamped.h"
 #include "nearlab_msgs/StateStamped.h"
 #include "nearlab_msgs/ControlStamped.h"
+#include "nearlab_msgs/energy_optimal_traj.h"
+#include "nearlab_msgs/attitude_traj.h"
 
 // These 3 come from nearlab_utils
 #include "orbitPropagator.h"
@@ -19,7 +21,7 @@ Eigen::Vector3d r, v, w;
 Eigen::Vector4d q;
 Eigen::Vector3d u_linear, u_angular;
 ros::Time tState, tControl;
-double sc_mass, sc_thrust, mean_rate, grav_param, rOrb[3];
+double sc_mass, sc_thrust, mean_rate, grav_param, rOrb[3], dist_const, time_const;
 Eigen::Matrix3d J;
 bool cwOnly;
 
@@ -50,15 +52,18 @@ void setupSim(const ros::NodeHandle& nh){
   double sc_inertia[3];
   nh.getParam("sc_mass",sc_mass);
   nh.getParam("sc_thrust",sc_thrust);
+  nh.getParam("dist_const",dist_const);
+  nh.getParam("time_const",time_const);
   nh.getParam("grav_param",grav_param);
-  nh.getParam("orbital_radius_x",srv.request.rOrb[0]);
-  nh.getParam("orbital_radius_x",srv.request.rOrb[1]);
-  nh.getParam("orbital_radius_x",srv.request.rOrb[2]);
-  nh.getParam("sc_inertia_xx",srv.request.sc_inertia[0]);
-  nh.getParam("sc_inertia_yy",srv.request.sc_inertia[1]);
-  nh.getParam("sc_inertia_zz",srv.request.sc_inertia[2]);
+  nh.getParam("orbital_radius_x",rOrb[0]);
+  nh.getParam("orbital_radius_x",rOrb[1]);
+  nh.getParam("orbital_radius_x",rOrb[2]);
+  nh.getParam("sc_inertia_xx",sc_inertia[0]);
+  nh.getParam("sc_inertia_yy",sc_inertia[1]);
+  nh.getParam("sc_inertia_zz",sc_inertia[2]);
   nh.getParam("clohessy_wiltshire",cwOnly);
-  mean_rate = sqrt(grav_param/pow(rOrb.norm(),3));
+  rOrbNorm = sqrt(rOrb[0]*rOrb[0]+rOrb[1]*rOrb[1]+rOrb[2]*rOrb[2]);
+  mean_rate = sqrt(grav_param/pow(rOrbNorm,3));
   J = Eigen::MatrixXd::Zero(3,3);
   J(0,0) = sc_inertia[0];
   J(1,1) = sc_inertia[1];
@@ -71,12 +76,12 @@ int main(int argc, char** argv){
   setupSim(nh);
 
   // Subscribers
-  subState = nh.subscribe("/orbot/space/state/vicon",100,stateCallback);
-  subControl = nh.subscribe("/orbot/space/control",100,controlCallback);
+  ros::Subscriber subState = nh.subscribe("/orbot/space/state/vicon",100,stateCallback);
+  ros::Subscriber subControl = nh.subscribe("/orbot/space/control",100,controlCallback);
 
   // Publishers
-  pubDynamics = nh.advertise<geometry_msgs::AccelStamped>("/orbot/space/dynamics/rel_accel"),100);
-  pubState = nh.advertise<nearlab_msgs::StateStamped>("/orbot/space/state/truth"),100);
+  ros::Publisher pubDynamics = nh.advertise<geometry_msgs::AccelStamped>("/orbot/space/dynamics/rel_accel",100);
+  ros::Publisher pubState = nh.advertise<nearlab_msgs::StateStamped>("/orbot/space/state/truth",100);
   
   // setup trajectory clients
   
@@ -102,9 +107,6 @@ int main(int argc, char** argv){
       if(tState.toSec() > 0){ // Don't need control input to initialize
         // Initialize
         initialized = true;
-        if(tControl.toSec() == 0){
-          u = Eigen::VectorXd::Zero(3);
-        }
         tPrev = tState;
         // Deregister vicon updater
         subState.shutdown();
@@ -141,12 +143,12 @@ int main(int argc, char** argv){
     geometry_msgs::AccelStamped accelMsg;
     accelMsg.header.seq = sequence;
     accelMsg.header.stamp = tPrev;// Is this right?
-    accelMsg.linear.x = a(0);
-    accelMsg.linear.y = a(1);
-    accelMsg.linear.z = a(2);
-    accelMsg.angular.x = wd(0);
-    accelMsg.angular.y = wd(1);
-    accelMsg.angular.z = wd(2);
+    accelMsg.accel.linear.x = a(0);
+    accelMsg.accel.linear.y = a(1);
+    accelMsg.accel.linear.z = a(2);
+    accelMsg.accel.angular.x = wd(0);
+    accelMsg.accel.angular.y = wd(1);
+    accelMsg.accel.angular.z = wd(2);
     pubControl.publish(accelMsg);
     // *******************************************************
 
