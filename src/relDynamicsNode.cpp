@@ -74,7 +74,7 @@ int main(int argc, char** argv){
   setupSim(nh);
 
   // Subscribers
-  ros::Subscriber subState = nh.subscribe("/orbot/space/state/vicon",100,stateCallback);
+  ros::Subscriber subState = nh.subscribe("/orbot/space/vicon",100,stateCallback);
   ros::Subscriber subControl = nh.subscribe("/orbot/space/control",100,controlCallback);
 
   // Publishers
@@ -82,7 +82,7 @@ int main(int argc, char** argv){
   ros::Publisher pubState = nh.advertise<nearlab_msgs::StateStamped>("/orbot/space/state/truth",100);
 
   // Loop
-  ROS_INFO("Controller Listening for Initial Estimate");
+  ROS_INFO("Dynamics Listening for Initial State from Vicon for Initial Estimate");
   ros::Rate loop_rate(100);
   bool initialized = false;
   tState = ros::Time(0);
