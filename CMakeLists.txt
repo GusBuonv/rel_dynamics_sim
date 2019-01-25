@@ -14,8 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_library(NL_UTILS NAMES nearlab_utils)
 
-#find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-set(EIGEN3_INCLUDE_DIRS /usr/share/eigen)
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+#set(EIGEN3_INCLUDE_DIRS /usr/share/eigen)
 
 catkin_package(CATKIN_DEPENDS
   std_msgs

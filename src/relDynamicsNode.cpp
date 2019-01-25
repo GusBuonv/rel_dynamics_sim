@@ -55,8 +55,8 @@ void setupSim(const ros::NodeHandle& nh){
   nh.getParam("time_const",time_const);
   nh.getParam("grav_param",grav_param);
   nh.getParam("orbital_radius_x",rOrb(0));
-  nh.getParam("orbital_radius_x",rOrb(1));
-  nh.getParam("orbital_radius_x",rOrb(2));
+  nh.getParam("orbital_radius_y",rOrb(1));
+  nh.getParam("orbital_radius_z",rOrb(2));
   nh.getParam("sc_inertia_xx",sc_inertia[0]);
   nh.getParam("sc_inertia_yy",sc_inertia[1]);
   nh.getParam("sc_inertia_zz",sc_inertia[2]);
@@ -119,8 +119,8 @@ int main(int argc, char** argv){
     // ************ Acceleration Calculation ***************
     Eigen::Vector3d a,wd;//Acceleration, omega-dot
     // Calculate accel
+    a = Eigen::VectorXd::Zero(3);
     if(cwOnly){
-      a = Eigen::VectorXd::Zero(3);
       a(0) = 3*mean_rate*mean_rate*r(0) + 2*mean_rate*v(1) + u_linear(0);
       a(1) = -2*mean_rate*v(0) + u_linear(1);
       a(2) = -mean_rate*mean_rate*r(2) + u_linear(2);
