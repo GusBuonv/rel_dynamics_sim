@@ -109,12 +109,11 @@ int main(int argc, char** argv){
 
         ROS_INFO("Dynamics Simulator Initialized");
         continue;
-
       }
       ros::spinOnce();
       continue;
     }
-
+    
 
     // ************ Acceleration Calculation ***************
     Eigen::Vector3d a,wd;//Acceleration, omega-dot
@@ -127,12 +126,13 @@ int main(int argc, char** argv){
     }else{
       // TODO: two-body, J2, higher order, three/four body, etc
     }
-
+    
     // Calculate gyro rate
     wd = J.inverse()*u_angular;
 
     // Publish relative acceleration
     geometry_msgs::AccelStamped accelMsg;
+
     accelMsg.header.seq = sequence;
     accelMsg.header.stamp = tPrev;// Is this right?
     accelMsg.accel.linear.x = a(0);
@@ -141,6 +141,7 @@ int main(int argc, char** argv){
     accelMsg.accel.angular.x = wd(0);
     accelMsg.accel.angular.y = wd(1);
     accelMsg.accel.angular.z = wd(2);
+    
     pubAccel.publish(accelMsg);
     // *******************************************************
 
@@ -149,12 +150,12 @@ int main(int argc, char** argv){
     // Calculate time since last update to state
     double dt = (ros::Time::now() - tPrev).toSec();
     tPrev = ros::Time::now();
-
+    
     // Propagate orbital dynamics
     Eigen::MatrixXd control_linear = Eigen::MatrixXd::Zero(6,1);
     control_linear.col(0).tail(3) = u_linear;
     Eigen::MatrixXd stateHistLin = Eigen::MatrixXd::Zero(6,2);
-    cwProp(stateHistLin,r,v,control_linear,dt,2,orbParams);
+    cwProp(stateHistLin,r,v,control_linear,dt,1,orbParams);
     r = stateHistLin.col(1).head(3);
     v = stateHistLin.col(1).tail(3);
     
@@ -162,15 +163,15 @@ int main(int argc, char** argv){
     Eigen::MatrixXd control_angular = Eigen::MatrixXd::Zero(7,1);
     control_angular.col(0).tail(3) = u_angular;
     Eigen::MatrixXd stateHistAtt = Eigen::MatrixXd::Zero(7,2);
-    attProp(stateHistAtt,q,w,control_angular,dt,2,attParams);
+    attProp(stateHistAtt,q,w,control_angular,dt,1,attParams);
     q = stateHistAtt.col(1).head(4);
     w = stateHistAtt.col(1).tail(3);
-
+    
     // Publish State
     nearlab_msgs::StateStamped stateMsg;
+
     stateMsg.header.seq = sequence++;
     stateMsg.header.stamp = tPrev;
-
     stateMsg.r.x = r(0);
     stateMsg.r.y = r(1);
     stateMsg.r.z = r(2);
@@ -185,8 +186,8 @@ int main(int argc, char** argv){
     stateMsg.q.z = q(2);
     stateMsg.q.z = q(3);
 
+    pubState.publish(stateMsg);
     //******************************************************
-
 
     ros::spinOnce();
     loop_rate.sleep();
