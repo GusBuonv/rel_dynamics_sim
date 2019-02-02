@@ -184,7 +184,7 @@ int main(int argc, char** argv){
     stateMsg.q.x = q(0);
     stateMsg.q.y = q(1);
     stateMsg.q.z = q(2);
-    stateMsg.q.z = q(3);
+    stateMsg.q.w = q(3);
 
     pubState.publish(stateMsg);
     //******************************************************
